@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Gestionnaire JDR</title>
+    <style>
+        body { font-family: Arial; background-color: #1a1a1a; color: #f0f0f0; margin:0; padding:0; }
+        header { background-color:#0d47a1; padding:20px; text-align:center; }
+        header h1 { margin:0; color:#fff; font-size:2em; }
+        nav { background-color:#1565c0; display:flex; justify-content:center; padding:10px; }
+        nav a { color:#fff; text-decoration:none; margin:0 15px; font-weight:bold; }
+        nav a:hover { text-decoration:underline; }
+        .container { padding:20px; }
+        .item-form, .list-section { background-color:#212121; padding:20px; margin-bottom:20px; border-radius:8px; }
+        input, select, textarea, button { width:100%; padding:10px; margin:10px 0; border-radius:4px; border:none; }
+        button { background-color:#0d47a1; color:#fff; font-weight:bold; cursor:pointer; }
+        button:hover { background-color:#1565c0; }
+        table { width:100%; border-collapse:collapse; margin-top:10px; }
+        th, td { border:1px solid #444; padding:8px; text-align:left; }
+        th { background-color:#0d47a1; cursor:pointer; }
+        h2,h3 { padding-bottom:5px; }
+        .category-title { border-bottom:2px solid #0d47a1; margin-top:20px; padding-bottom:5px; }
+        #searchInput { width:50%; margin-bottom:10px; }
+        .action-btn { width:auto; margin-right:5px; padding:5px 10px; }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Gestionnaire JDR</h1>
+</header>
+<nav>
+    <a href="#create">Créer un élément</a>
+    <a href="#list">Liste</a>
+</nav>
+
+<div class="container">
+
+    <!-- Création d'élément -->
+    <div class="item-form" id="create">
+        <h2>Créer un élément</h2>
+        <input type="text" id="itemName" placeholder="Nom de l'objet / personnage">
+        <input type="text" id="scenarioName" placeholder="Nom du scénario">
+        <select id="itemCategory">
+            <option value="perso">Personnage</option>
+            <option value="objet">Objet</option>
+            <option value="monstre">Monstre</option>
+            <option value="autre">Autre</option>
+        </select>
+        <select id="subType" style="display:none;">
+            <option value="perso">Personnage</option>
+            <option value="objet">Objet</option>
+            <option value="monstre">Monstre</option>
+        </select>
+        <input type="text" id="itemRarity" placeholder="Rareté (ex: Commun, Rare, Épique)">
+        <textarea id="itemDesc" placeholder="Description"></textarea>
+        <button onclick="addItem()">Ajouter</button>
+        <button onclick="exportItems()">Exporter JSON</button>
+        <input type="file" id="importFile" accept=".json" onchange="importItems(event)">
+    </div>
+
+    <!-- Liste avec recherche -->
+    <div class="list-section" id="list">
+        <h2>Liste des éléments</h2>
+        <input type="text" id="searchInput" onkeyup="filterItems()" placeholder="Rechercher...">
+        <div id="categories"></div>
+    </div>
+</div>
+
+<script>
+const categories = ["perso","objet","monstre","autre"];
+
+window.onload = function() {
+    const saved = localStorage.getItem("jdrItems");
+    if(saved){
+        const items = JSON.parse(saved);
+        items.forEach(item => addItemToList(item,false));
+    }
+}
+
+const itemCategorySelect = document.getElementById("itemCategory");
+const subTypeSelect = document.getElementById("subType");
+
+itemCategorySelect.addEventListener("change",()=> {
+    subTypeSelect.style.display = itemCategorySelect.value === "autre" ? "block":"none";
+});
+
+function addItem(){
+    const name=document.getElementById('itemName').value;
+    const scenario=document.getElementById('scenarioName').value;
+    let category=document.getElementById('itemCategory').value;
+    const rarity=document.getElementById('itemRarity').value || "";
+    const desc=document.getElementById('itemDesc').value;
+
+    if(category==="autre") category="Autre - "+subTypeSelect.value;
+
+    if(name && scenario){
+        const item={name,scenario,category,rarity,desc};
+        addItemToList(item,true);
+        document.getElementById('itemName').value='';
+        document.getElementById('scenarioName').value='';
+        document.getElementById('itemRarity').value='';
+        document.getElementById('itemDesc').value='';
+    } else alert('Veuillez remplir au moins le nom et le scénario.');
+}
+
+function addItemToList(item,save=true){
+    // Eviter doublons exacts
+    const saved = JSON.parse(localStorage.getItem("jdrItems")||"[]");
+    if(save){
+        if(saved.some(i => i.name===item.name && i.scenario===item.scenario && i.category===item.category && i.rarity===item.rarity && i.desc===item.desc)) return;
+    }
+
+    const categoryKey=item.category.split(" - ")[0].toLowerCase();
+    let catDiv=document.getElementById("cat-"+categoryKey);
+    if(!catDiv){
+        catDiv=document.createElement("div");
+        catDiv.id="cat-"+categoryKey;
+        const title=document.createElement("h3");
+        title.className="category-title";
+        title.textContent=item.category.split(" - ")[0].charAt(0).toUpperCase()+item.category.slice(1);
+        catDiv.appendChild(title);
+        const table=document.createElement("table");
+        table.innerHTML=`<thead><tr>
+            <th>Nom</th><th>Scénario</th><th>Rareté</th><th>Description</th><th>Actions</th>
+        </tr></thead><tbody></tbody>`;
+        catDiv.appendChild(table);
+        document.getElementById("categories").appendChild(catDiv);
+    }
+
+    const tbody=catDiv.querySelector("tbody");
+    const row=tbody.insertRow();
+    row.insertCell(0).textContent=item.name;
+    row.insertCell(1).textContent=item.scenario;
+    row.insertCell(2).textContent=item.rarity;
+    row.insertCell(3).textContent=item.desc;
+
+    const actionsCell=row.insertCell(4);
+    const editBtn=document.createElement("button");
+    editBtn.textContent="Modifier";
+    editBtn.className="action-btn";
+    editBtn.onclick=()=>editItem(row);
+    const deleteBtn=document.createElement("button");
+    deleteBtn.textContent="Supprimer";
+    deleteBtn.className="action-btn";
+    deleteBtn.onclick=()=>deleteItem(row);
+    actionsCell.appendChild(editBtn);
+    actionsCell.appendChild(deleteBtn);
+
+    if(save){
+        saved.push(item);
+        localStorage.setItem("jdrItems",JSON.stringify(saved));
+    }
+}
+
+function updateLocal(){
+    let allItems=[];
+    categories.forEach(cat=>{
+        const catDiv=document.getElementById("cat-"+cat);
+        if(catDiv){
+            const rows=catDiv.querySelectorAll("tbody tr");
+            rows.forEach(row=>{
+                allItems.push({
+                    name:row.cells[0].textContent,
+                    scenario:row.cells[1].textContent,
+                    category:cat,
+                    rarity:row.cells[2].textContent,
+                    desc:row.cells[3].textContent
+                });
+            });
+        }
+    });
+    localStorage.setItem("jdrItems",JSON.stringify(allItems));
+}
+
+function editItem(row){
+    for(let i=0;i<4;i++){
+        const input=document.createElement("input");
+        input.value=row.cells[i].textContent;
+        row.cells[i].textContent="";
+        row.cells[i].appendChild(input);
+    }
+    const actionsCell=row.cells[4];
+    actionsCell.children[0].textContent="Sauvegarder";
+    actionsCell.children[0].onclick=()=>saveItem(row);
+}
+
+function saveItem(row){
+    for(let i=0;i<4;i++){
+        const input=row.cells[i].querySelector("input");
+        row.cells[i].textContent=input.value;
+    }
+    const actionsCell=row.cells[4];
+    actionsCell.children[0].textContent="Modifier";
+    actionsCell.children[0].onclick=()=>editItem(row);
+    updateLocal();
+}
+
+function deleteItem(row){
+    if(confirm("Supprimer cet élément ?")){
+        row.remove();
+        updateLocal();
+    }
+}
+
+function filterItems(){
+    const filter=document.getElementById("searchInput").value.toLowerCase();
+    categories.forEach(cat=>{
+        const catDiv=document.getElementById("cat-"+cat);
+        if(catDiv){
+            const rows=catDiv.querySelectorAll("tbody tr");
+            rows.forEach(row=>{
+                let match=false;
+                for(let i=0;i<4;i++){
+                    if(row.cells[i].textContent.toLowerCase().includes(filter)){
+                        match=true; break;
+                    }
+                }
+                row.style.display=match?"":"none";
+            });
+        }
+    });
+}
+
+// Export JSON
+function exportItems(){
+    const data = localStorage.getItem("jdrItems");
+    if(!data) { alert("Aucun objet à exporter."); return; }
+    const blob = new Blob([data], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href=url;
+    a.download="jdr_items.json";
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+// Import JSON
+function importItems(event){
+    const file = event.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e){
+        try{
+            const imported=JSON.parse(e.target.result);
+            if(!Array.isArray(imported)) throw "Format invalide";
+            imported.forEach(item=>addItemToList(item,true));
+        }catch(err){
+            alert("Erreur d'import : "+err);
+        }
+    }
+    reader.readAsText(file);
+    event.target.value=""; // reset input
+}
+</script>
+</body>
+</html>
