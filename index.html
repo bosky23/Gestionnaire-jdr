@@ -38,21 +38,29 @@
     <!-- Création d'élément -->
     <div class="item-form" id="create">
         <h2>Créer un élément</h2>
-        <input type="text" id="itemName" placeholder="Nom de l'objet / personnage">
+        <input type="text" id="itemName" placeholder="Nom de l'élément">
         <input type="text" id="scenarioName" placeholder="Nom du scénario">
+
         <select id="itemCategory">
             <option value="perso">Personnage</option>
             <option value="objet">Objet</option>
             <option value="monstre">Monstre</option>
+            <option value="competence">Compétence</option>
+            <option value="rune">Rune</option>
             <option value="autre">Autre</option>
         </select>
+
         <select id="subType" style="display:none;">
             <option value="perso">Personnage</option>
             <option value="objet">Objet</option>
             <option value="monstre">Monstre</option>
+            <option value="competence">Compétence</option>
+            <option value="rune">Rune</option>
         </select>
+
         <input type="text" id="itemRarity" placeholder="Rareté (ex: Commun, Rare, Épique)">
         <textarea id="itemDesc" placeholder="Description"></textarea>
+
         <button onclick="addItem()">Ajouter</button>
         <button onclick="exportItems()">Exporter JSON</button>
         <input type="file" id="importFile" accept=".json" onchange="importItems(event)">
@@ -67,7 +75,9 @@
 </div>
 
 <script>
-const categories = ["perso","objet","monstre","autre"];
+
+// Ajout compétences & runes ici
+const categories = ["perso","objet","monstre","competence","rune","autre"];
 
 window.onload = function() {
     const saved = localStorage.getItem("jdrItems");
@@ -75,7 +85,7 @@ window.onload = function() {
         const items = JSON.parse(saved);
         items.forEach(item => addItemToList(item,false));
     }
-}
+};
 
 const itemCategorySelect = document.getElementById("itemCategory");
 const subTypeSelect = document.getElementById("subType");
@@ -104,7 +114,6 @@ function addItem(){
 }
 
 function addItemToList(item,save=true){
-    // Eviter doublons exacts
     const saved = JSON.parse(localStorage.getItem("jdrItems")||"[]");
     if(save){
         if(saved.some(i => i.name===item.name && i.scenario===item.scenario && i.category===item.category && i.rarity===item.rarity && i.desc===item.desc)) return;
@@ -112,13 +121,16 @@ function addItemToList(item,save=true){
 
     const categoryKey=item.category.split(" - ")[0].toLowerCase();
     let catDiv=document.getElementById("cat-"+categoryKey);
+
     if(!catDiv){
         catDiv=document.createElement("div");
         catDiv.id="cat-"+categoryKey;
+
         const title=document.createElement("h3");
         title.className="category-title";
         title.textContent=item.category.split(" - ")[0].charAt(0).toUpperCase()+item.category.slice(1);
         catDiv.appendChild(title);
+
         const table=document.createElement("table");
         table.innerHTML=`<thead><tr>
             <th>Nom</th><th>Scénario</th><th>Rareté</th><th>Description</th><th>Actions</th>
@@ -249,7 +261,7 @@ function importItems(event){
         }
     }
     reader.readAsText(file);
-    event.target.value=""; // reset input
+    event.target.value="";
 }
 </script>
 </body>
