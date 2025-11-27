@@ -69,7 +69,17 @@
     <!-- Liste avec recherche -->
     <div class="list-section" id="list">
         <h2>Liste des éléments</h2>
-        <input type="text" id="searchInput" onkeyup="filterItems()" placeholder="Rechercher...">
+        <div style="display:flex; gap:10px; align-items:center; margin-bottom:10px;">
+    <input type="text" id="searchInput" onkeyup="filterItems()" placeholder="Rechercher..." style="flex:1;">
+    <select id="searchType" onchange="filterItems()" style="width:150px;">
+        <option value="all">Tout</option>
+        <option value="name">Nom</option>
+        <option value="scenario">Scénario</option>
+        <option value="rarity">Rareté</option>
+        <option value="desc">Description</option>
+    </select>
+</div>
+
         <div id="categories"></div>
     </div>
 </div>
@@ -215,23 +225,35 @@ function deleteItem(row){
 }
 
 function filterItems(){
-    const filter=document.getElementById("searchInput").value.toLowerCase();
+    const filter = document.getElementById("searchInput").value.toLowerCase();
+    const type = document.getElementById("searchType").value;
+
     categories.forEach(cat=>{
         const catDiv=document.getElementById("cat-"+cat);
         if(catDiv){
             const rows=catDiv.querySelectorAll("tbody tr");
             rows.forEach(row=>{
+                let data = {
+                    name: row.cells[0].textContent.toLowerCase(),
+                    scenario: row.cells[1].textContent.toLowerCase(),
+                    rarity: row.cells[2].textContent.toLowerCase(),
+                    desc: row.cells[3].textContent.toLowerCase()
+                };
+
                 let match=false;
-                for(let i=0;i<4;i++){
-                    if(row.cells[i].textContent.toLowerCase().includes(filter)){
-                        match=true; break;
-                    }
+
+                if(type==="all"){
+                    match = Object.values(data).some(val => val.includes(filter));
+                } else {
+                    match = data[type].includes(filter);
                 }
-                row.style.display=match?"":"none";
+
+                row.style.display = match ? "" : "none";
             });
         }
     });
 }
+
 
 // Export JSON
 function exportItems(){
